@@ -2,6 +2,7 @@ DATABASES:=markov.sqlite3
 SQLITE3:=sqlite3
 CURL:=curl
 MAXLINES:=5000
+PSQLDBNAME:=markov
 
 all: databases distfiles
 
@@ -11,9 +12,9 @@ clean:
 scrub: clean
 
 databases: $(DATABASES)
-distfiles: dist/markov-data.sql
+distfiles: dist/sqlite3.markov-data.sql dist/psql.markov-data.sql
 
-markov.sqlite3: src/sequence.sql src/markov.sql src/corporations.sql src/dist.female.first.sql src/dist.male.first.sql src/dist.all.last.sql src/data.sql
+markov.sqlite3: src/sequence.sql src/sqlite3.markov.sql src/corporations.sql src/dist.female.first.sql src/dist.male.first.sql src/dist.all.last.sql
 	rm -f $@*
 	cat $^ | $(SQLITE3) $@
 	$(SQLITE3) $@ analyze
@@ -24,8 +25,14 @@ markov.sqlite3: src/sequence.sql src/markov.sql src/corporations.sql src/dist.fe
 	$(SQLITE3) $@ 'delete from markovconstruct'
 	$(SQLITE3) $@ 'delete from markovresult'
 
-dist/%.sql: %.sqlite3
+dist/sqlite3.%.sql: %.sqlite3
 	$(SQLITE3) $^ '.dump' > $@
+
+dist/psql.markov-data.sql: src/sequence.sql src/psql.markov.sql src/corporations.sql src/dist.female.first.sql src/dist.male.first.sql src/dist.all.last.sql
+	dropdb $(PSQLDBNAME) || true
+	createdb $(PSQLDBNAME)
+	cat $^ | psql -q $(PSQLDBNAME)
+	pg_dump -O $(PSQLDBNAME) > $@
 
 src/%.sql: data/%
 	rm -f $@
